@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Disease Prediction System: live preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef3f6;--surface:#fff;--ink:#14283a;--muted:#5b6f80;--line:#d3dee6;--accent:#0e7c86;--accent-soft:#d9eef0;--track:#e3ebf0;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1b25;--surface:#172633;--ink:#e6eef3;--muted:#93a7b6;--line:#2a3d4d;--accent:#4fc3cc;--accent-soft:#17414a;--track:#223545;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1b25;--surface:#172633;--ink:#e6eef3;--muted:#93a7b6;--line:#2a3d4d;--accent:#4fc3cc;--accent-soft:#17414a;--track:#223545;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 18px 40px}
+h1{font-size:clamp(1.6rem,4vw,2.3rem);line-height:1.15;margin:0 0 8px;font-weight:700;letter-spacing:-.01em}
+.lede{max-width:62ch;color:var(--muted);margin:0 0 24px}
+.grid{display:grid;grid-template-columns:1.15fr 1fr;gap:18px;align-items:start}
+@media(max-width:800px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+h2{font-size:1rem;margin:0 0 4px;font-weight:600}
+.hint{font-size:.86rem;color:var(--muted);margin:0 0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{font:inherit;font-size:.88rem;border:1px solid var(--line);background:transparent;color:var(--ink);padding:6px 12px;border-radius:999px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+:root:not([data-theme="light"]) .chip[aria-pressed="true"]{color:#06232a}
+.chip:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:18px}
+label{font-size:.8rem;color:var(--muted);display:block}
+input{width:100%;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.side{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+@media(max-width:800px){.side{position:static}}
+.row{margin:0 0 14px}
+.rowhead{display:flex;justify-content:space-between;gap:8px;font-weight:500;margin-bottom:5px}
+.rowhead span:last-child{font-variant-numeric:tabular-nums;color:var(--muted)}
+.track{height:12px;background:var(--track);border-radius:6px;overflow:hidden}
+.bar{height:100%;width:0;background:var(--accent);border-radius:6px;transition:width .45s ease}
+.row:first-child .rowhead span:last-child{color:var(--ink);font-weight:700}
+.empty{color:var(--muted);margin:0}
+.actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.btn{font:inherit;font-size:.88rem;padding:7px 13px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.stats{display:flex;gap:22px;flex-wrap:wrap;margin:22px 0 0;padding-top:16px;border-top:1px solid var(--line);font-size:.88rem;color:var(--muted)}
+.stats b{display:block;font-size:1.25rem;color:var(--ink);font-variant-numeric:tabular-nums}
+.note{font-size:.82rem;color:var(--muted);margin:20px 0 0;max-width:78ch}
+@media(prefers-reduced-motion:reduce){.bar{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Disease Prediction System</h1>
+  <p class="lede">Pick the symptoms a patient has and add any record values you know. A K-nearest-neighbours model, trained in your browser on synthetic patient data, ranks the most likely diseases as you click.</p>
+
+  <div class="grid">
+    <section class="panel" aria-label="Patient input">
+      <h2>Symptoms</h2>
+      <p class="hint">Tap to select or clear.</p>
+      <div class="chips" id="chips"></div>
+      <div class="nums" id="nums"></div>
+      <div class="actions">
+        <button class="btn" id="dengue">Try: dengue-like case</button>
+        <button class="btn" id="flu">Try: overlapping case</button>
+        <button class="btn" id="clear">Clear all</button>
+      </div>
+    </section>
+
+    <aside class="panel side" aria-live="polite">
+      <h2>Disease likelihood</h2>
+      <p class="hint" id="sub">Share of the 11 most similar training patients with each disease.</p>
+      <div id="out"><p class="empty">Select at least one symptom to see a ranking.</p></div>
+    </aside>
+  </div>
+
+  <div class="stats">
+    <div><b>14</b>diseases</div>
+    <div><b>27</b>symptoms</div>
+    <div><b>5</b>record values, standardized</div>
+    <div><b>96.0%</b>KNN test accuracy in the notebook</div>
+  </div>
+  <p class="note">This page rebuilds a simplified version of the notebook model (all features, k = 11, Manhattan distance, 150 synthetic patients per disease). Empty record values default to the dataset average. Educational demo only, not medical advice.</p>
+</div>
+
+<script>
+const SYM="fever,cough,sore_throat,runny_nose,headache,fatigue,body_ache,nausea,vomiting,diarrhea,abdominal_pain,chest_pain,shortness_of_breath,rash,joint_pain,chills,loss_of_taste_smell,frequent_urination,excessive_thirst,blurred_vision,dizziness,sweating,itching,yellow_skin,loss_of_appetite,stiff_neck,light_sensitivity".split(",");
+const NUM=[["age","Age",1,95],["temp","Temperature (°F)",95,108],["hr","Heart rate (bpm)",40,160],["sbp","Systolic BP",70,220],["wbc","WBC (×10³/µL)",1,40]];
+// disease: [symptom probabilities, [age mu,sd, temp mu,sd, hr mu,sd, sbp mu,sd, wbc mu,sd]]
+const P={
+"Common Cold":["runny_nose:.9,sore_throat:.7,cough:.6,headache:.3,fatigue:.3",[30,15,98.9,.5,76,8,118,10,7,1.2]],
+"Influenza":["fever:.9,chills:.7,body_ache:.9,cough:.8,headache:.6,fatigue:.8,sore_throat:.4",[32,16,101.5,.9,90,9,116,10,6,1.2]],
+"COVID-19":["fever:.8,cough:.8,loss_of_taste_smell:.8,fatigue:.7,shortness_of_breath:.4,body_ache:.5,headache:.5,sore_throat:.4",[42,17,100.6,1,88,10,120,12,5.5,1.5]],
+"Pneumonia":["fever:.85,cough:.95,shortness_of_breath:.8,chest_pain:.6,chills:.6,fatigue:.6",[55,20,101.8,1,100,10,118,12,14,2.5]],
+"Dengue":["fever:.95,headache:.8,joint_pain:.85,body_ache:.8,rash:.6,nausea:.5,vomiting:.4,fatigue:.7,light_sensitivity:.3",[28,13,103,1,92,9,110,10,3.2,.9]],
+"Malaria":["fever:.95,chills:.9,sweating:.8,headache:.7,nausea:.5,vomiting:.4,body_ache:.5,fatigue:.6",[30,14,102.5,1,96,10,108,10,5,1.3]],
+"Typhoid":["fever:.9,abdominal_pain:.7,headache:.6,loss_of_appetite:.7,fatigue:.7,diarrhea:.4,nausea:.4,rash:.25",[26,12,102,1,80,8,110,10,4.5,1.2]],
+"Gastroenteritis":["diarrhea:.9,vomiting:.8,nausea:.85,abdominal_pain:.8,fever:.4,fatigue:.4",[30,18,99.5,.9,92,10,112,11,9,2]],
+"Diabetes":["excessive_thirst:.9,frequent_urination:.9,fatigue:.7,blurred_vision:.6,itching:.3,dizziness:.3",[52,12,98.6,.4,80,9,132,13,7.5,1.5]],
+"Hypertension":["headache:.6,dizziness:.6,blurred_vision:.3,chest_pain:.25,shortness_of_breath:.25,fatigue:.35",[56,11,98.6,.4,82,10,160,14,7,1.4]],
+"Migraine":["headache:.98,nausea:.7,light_sensitivity:.9,vomiting:.4,dizziness:.4,blurred_vision:.3",[34,10,98.6,.4,78,9,118,10,7,1.3]],
+"Hepatitis":["yellow_skin:.95,fatigue:.8,loss_of_appetite:.8,nausea:.6,abdominal_pain:.5,itching:.5,fever:.3,vomiting:.4",[38,14,99.2,.8,80,9,115,11,6.5,1.6]],
+"Asthma":["shortness_of_breath:.95,cough:.8,chest_pain:.4,fatigue:.3",[28,15,98.6,.4,92,10,118,10,8,1.5]],
+"Meningitis":["fever:.9,headache:.95,stiff_neck:.9,light_sensitivity:.8,nausea:.6,vomiting:.5",[25,15,102.5,1,104,10,115,11,16,3]]
+};
+let seed=42;const rnd=()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const gauss=(m,s)=>m+s*Math.sqrt(-2*Math.log(1-rnd()))*Math.cos(2*Math.PI*rnd());
+
+// build synthetic data, then standardize numeric columns
+const data=[];
+for(const [d,[sp,nm]] of Object.entries(P)){
+  const pr={};sp.split(",").forEach(x=>{const [k,v]=x.split(":");pr[k]=+v});
+  for(let i=0;i<150;i++){
+    const s=SYM.map(k=>rnd()<(pr[k]??.04)?1:0);
+    const n=[0,1,2,3,4].map(j=>gauss(nm[2*j],nm[2*j+1]));
+    n[0]=Math.min(95,Math.max(1,Math.round(n[0])));
+    data.push({d,s,n});
+  }
+}
+const mean=[0,1,2,3,4].map(j=>data.reduce((a,r)=>a+r.n[j],0)/data.length);
+const sd=[0,1,2,3,4].map(j=>Math.sqrt(data.reduce((a,r)=>a+(r.n[j]-mean[j])**2,0)/data.length));
+data.forEach(r=>r.x=[...r.s,...r.n.map((v,j)=>(v-mean[j])/sd[j])]);
+
+function predict(sel,vals){
+  const x=[...SYM.map(k=>sel.has(k)?1:0),...vals.map((v,j)=>((v??mean[j])-mean[j])/sd[j])];
+  const dist=data.map(r=>{let t=0;for(let i=0;i<x.length;i++)t+=Math.abs(x[i]-r.x[i]);return[t,r.d]}).sort((a,b)=>a[0]-b[0]).slice(0,11);
+  const c={};dist.forEach(([,d])=>c[d]=(c[d]||0)+1);
+  return Object.entries(c).map(([d,n])=>[d,n/11]).sort((a,b)=>b[1]-a[1]);
+}
+
+// UI
+const sel=new Set(),label=s=>s.replace(/_/g," ");
+const chips=document.getElementById("chips"),nums=document.getElementById("nums"),out=document.getElementById("out");
+SYM.forEach(k=>{const b=document.createElement("button");b.className="chip";b.textContent=label(k);b.setAttribute("aria-pressed","false");
+  b.onclick=()=>{sel.has(k)?sel.delete(k):sel.add(k);b.setAttribute("aria-pressed",sel.has(k));render()};chips.appendChild(b)});
+NUM.forEach(([id,name,min,max])=>{const w=document.createElement("div");
+  w.innerHTML=`<label for="${id}">${name}</label><input id="${id}" type="number" min="${min}" max="${max}" step="any" placeholder="average">`;
+  w.querySelector("input").oninput=render;nums.appendChild(w)});
+
+function render(){
+  if(!sel.size){out.innerHTML='<p class="empty">Select at least one symptom to see a ranking.</p>';return}
+  const vals=NUM.map(([id])=>{const v=document.getElementById(id).value;return v===""?null:+v});
+  const top=predict(sel,vals).slice(0,5);
+  out.innerHTML=top.map(([d,p])=>`<div class="row"><div class="rowhead"><span>${d}</span><span>${Math.round(p*100)}%</span></div><div class="track"><div class="bar" data-w="${p*100}"></div></div></div>`).join("");
+  requestAnimationFrame(()=>out.querySelectorAll(".bar").forEach(b=>b.style.width=b.dataset.w+"%"));
+}
+function setCase(list,v){sel.clear();list.forEach(k=>sel.add(k));
+  [...chips.children].forEach((b,i)=>b.setAttribute("aria-pressed",sel.has(SYM[i])));
+  NUM.forEach(([id],j)=>document.getElementById(id).value=v[j]??"");render()}
+document.getElementById("dengue").onclick=()=>setCase(["fever","joint_pain","headache","rash","body_ache"],[24,103.1,null,null,3]);
+document.getElementById("flu").onclick=()=>setCase(["fever","cough","fatigue","body_ache"],[]);
+document.getElementById("clear").onclick=()=>setCase([],[]);
+setCase(["fever","joint_pain","headache","rash","body_ache"],[24,103.1,null,null,3]);
+</script>
+</body>
+</html>
